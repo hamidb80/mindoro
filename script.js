@@ -1,3 +1,94 @@
+// Utils -----------------------------------------
+
+function randomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+function choice(arr) {
+    return arr[randomInt(0, arr.length - 1)]
+}
+
+function swapIndexes(array, i, j) {
+    ;[array[i], array[j]] = [array[j], array[i]]
+}
+
+function shuffle(array) {
+    const len = array.length
+    for (let i = 0; i < len; i++) {
+        swapIndexes(array, i, randomInt(0, len - 1))
+    }
+    return array
+}
+
+function applyStyles(el, styles) {
+    for (let prop in styles) {
+        el.style[prop] = styles[prop]
+    }
+}
+
+// Cosntants ------------------------------------
+
+const CELL_SIZE = 80
+const CELL_MARGIN = 4
+const EFFECTIVE_CELL_SIZE = CELL_SIZE + CELL_MARGIN * 2 // Total space per cell
+const MAX_NEW_RECTS = 3
+
+const DIRECTIONS = [
+    { dx: 0, dy: 0 }, // Center (highest priority)
+    { dx: 0, dy: -1 }, // North
+    { dx: 1, dy: -1 }, // North-East
+    { dx: 1, dy: 0 }, // East
+    { dx: 1, dy: 1 }, // South-East
+    { dx: 0, dy: 1 }, // South
+    { dx: -1, dy: 1 }, // South-West
+    { dx: -1, dy: 0 }, // West
+    { dx: -1, dy: -1 }, // North-West
+]
+
+const aspectRatios = [
+    [1, 1], // Square
+    [1, 2], // Horizontal rectangle
+    [1, 3], // Wide rectangle
+    [2, 3], // Short wide rectangle
+    [4, 3], // Almost square
+    [3, 4], // Vertical rectangle
+]
+
+const MAX_RECTANGLES = 30
+
+// Colors for rectangles
+const colors = [
+    "#B2FF59",
+    "#EEFF41",
+    "#FFFF00",
+    "#FFD740",
+    "#FFAB40",
+    "#FF6E40",
+]
+
+// Sample content for rectangles
+const textContent = ["Grid", "Tile", "Box", "Cell"]
+
+// ----------------------------------------------
+
+// View state
+let viewX = 0
+let viewY = 0
+let isDragging = false
+let lastX = 0
+let lastY = 0
+let totalMoveX = 0
+let totalMoveY = 0
+let lastRectangleTime = 0 // Time of last rectangle placement
+let squareInterval = 250 // Configurable delay between rectangle batches (default 250ms)
+
+// Occupied grid cells tracking
+const occupiedCells = new Set()
+const rectangles = []
+const imageUrls = []
+
+// -----------------------------------------------------
+
 // Grid container setup
 const gridContainer = document.getElementById("grid-container")
 const countElement = document.getElementById("count")
@@ -14,121 +105,30 @@ const popupClose = document.getElementById("popup-close")
 const popupText = document.getElementById("popup-text")
 const popupDimensions = document.getElementById("popup-dimensions")
 
-// Grid cell size (40x40 pixels) with 2px margin
-const CELL_SIZE = 80
-const CELL_MARGIN = 4 // Constant 2px margin around each cell
-const EFFECTIVE_CELL_SIZE = CELL_SIZE + CELL_MARGIN * 2 // Total space per cell
+// -----------------------------------------------------
 
-// View state
-let viewX = 0
-let viewY = 0
-let isDragging = false
-let lastX = 0
-let lastY = 0
-let totalMoveX = 0
-let totalMoveY = 0
-let lastRectangleTime = 0 // Time of last rectangle placement
-let squareInterval = 250 // Configurable delay between rectangle batches (default 250ms)
-
-// Rectangle aspect ratios (height:width in grid cells)
-const aspectRatios = [
-    [1, 1], // Square
-    [1, 2], // Horizontal rectangle
-    [1, 3], // Wide rectangle
-    [2, 3], // Short wide rectangle
-    [4, 3], // Almost square
-    [3, 4], // Vertical rectangle
-]
-
-// Occupied grid cells tracking
-const occupiedCells = new Set()
-
-// Rectangle storage (max 30)
-const rectangles = []
-const MAX_RECTANGLES = 30
-
-// Colors for rectangles
-const colors = [
-    "#FF5252",
-    "#FF4081",
-    "#E040FB",
-    "#7C4DFF",
-    "#536DFE",
-    "#448AFF",
-    "#40C4FF",
-    "#18FFFF",
-    "#64FFDA",
-    "#69F0AE",
-    "#B2FF59",
-    "#EEFF41",
-    "#FFFF00",
-    "#FFD740",
-    "#FFAB40",
-    "#FF6E40",
-]
-
-// Sample content for rectangles
-const textContent = [
-    "Grid",
-    "Tile",
-    "Box",
-    "Cell",
-    "Unit",
-    "Block",
-    "Piece",
-    "Element",
-    "Item",
-    "Part",
-]
-
-const imageUrls = []
-
-// Event listeners for panning
-gridContainer.addEventListener("mousedown", startPan)
-gridContainer.addEventListener("mousemove", pan)
-gridContainer.addEventListener("mouseup", endPan)
-gridContainer.addEventListener("mouseleave", endPan)
-
-// Popup event listeners
-popupClose.addEventListener("click", closePopup)
-overlay.addEventListener("click", closePopup)
-
-// Delay slider event listener
-delaySlider.addEventListener("input", function () {
-    squareInterval = parseInt(this.value)
-    delayValue.textContent = squareInterval
-})
-
-// Update center indicator position
-function updateCenterIndicator() {
-    const centerX = window.innerWidth / 2
-    const centerY = window.innerHeight / 2
-    centerIndicator.style.left = `${centerX}px`
-    centerIndicator.style.top = `${centerY}px`
-}
-
-// Initialize center indicator
-updateCenterIndicator()
-window.addEventListener("resize", updateCenterIndicator)
-
-// Show popup with rectangle details
 function showPopup(rectangle) {
-    // Set popup content
     const isText = rectangle.element.querySelector("p")
     popupText.textContent = isText
         ? `Text Content: ${isText.textContent}`
         : "Image Content"
     popupDimensions.textContent = `Size: ${rectangle.gridWidth}x${rectangle.gridHeight}`
-
-    // Show popup and overlay
     popup.classList.add("visible")
     overlay.classList.add("visible")
 }
 
-// Close popup
 function closePopup() {
     popup.classList.remove("visible")
     overlay.classList.remove("visible")
+}
+
+function updateCenterIndicator() {
+    const centerX = window.innerWidth / 2
+    const centerY = window.innerHeight / 2
+    applyStyles(centerIndicator, {
+        left: `${centerX}px`,
+        top: `${centerY}px`,
+    })
 }
 
 function startPan(e) {
@@ -158,10 +158,8 @@ function pan(e) {
     lastX = e.clientX
     lastY = e.clientY
 
-    // Update positions of all rectangles
     updateRectanglePositions()
 
-    // Create rectangles continuously while panning
     const now = Date.now()
     if (now - lastRectangleTime >= squareInterval) {
         createRectanglesAroundCenter()
@@ -174,7 +172,6 @@ function endPan() {
     gridContainer.style.cursor = "grab"
 }
 
-// Convert world coordinates to grid coordinates
 function worldToGrid(x, y) {
     return {
         gridX: Math.floor(x / EFFECTIVE_CELL_SIZE),
@@ -190,12 +187,9 @@ function gridToWorld(gridX, gridY) {
     }
 }
 
-// Get cell key for Set storage
 function getCellKey(gridX, gridY) {
     return `${gridX},${gridY}`
 }
-
-// Check if a grid area is occupied
 function isAreaOccupied(gridX, gridY, widthCells, heightCells) {
     for (let y = gridY; y < gridY + heightCells; y++) {
         for (let x = gridX; x < gridX + widthCells; x++) {
@@ -207,7 +201,6 @@ function isAreaOccupied(gridX, gridY, widthCells, heightCells) {
     return false
 }
 
-// Mark grid area as occupied
 function markAreaOccupied(gridX, gridY, widthCells, heightCells) {
     for (let y = gridY; y < gridY + heightCells; y++) {
         for (let x = gridX; x < gridX + widthCells; x++) {
@@ -215,8 +208,6 @@ function markAreaOccupied(gridX, gridY, widthCells, heightCells) {
         }
     }
 }
-
-// Mark grid area as free
 function markAreaFree(gridX, gridY, widthCells, heightCells) {
     for (let y = gridY; y < gridY + heightCells; y++) {
         for (let x = gridX; x < gridX + widthCells; x++) {
@@ -224,63 +215,31 @@ function markAreaFree(gridX, gridY, widthCells, heightCells) {
         }
     }
 }
-
-// Update positions of all rectangles based on view
 function updateRectanglePositions() {
     for (const rect of rectangles) {
-        rect.element.style.left = `${rect.x - viewX}px`
-        rect.element.style.top = `${rect.y - viewY}px`
+        applyStyles(rect.element, {
+            left: `${rect.x - viewX}px`,
+            top: `${rect.y - viewY}px`,
+        })
     }
 }
 
-// Create 1-4 rectangles in random directions around the center
 function createRectanglesAroundCenter() {
     const centerX = viewX + window.innerWidth / 2
     const centerY = viewY + window.innerHeight / 2
-
-    // Convert center to grid coordinates
     const gridCenter = worldToGrid(centerX, centerY)
-
-    // Number of rectangles to create (1-4)
-    const numRectangles = Math.floor(Math.random() * 4) + 1
-
-    // Possible directions (9 directions around center) - prioritizing center
-    const directions = [
-        { dx: 0, dy: 0 }, // Center (highest priority)
-        { dx: 0, dy: -1 }, // North
-        { dx: 1, dy: -1 }, // North-East
-        { dx: 1, dy: 0 }, // East
-        { dx: 1, dy: 1 }, // South-East
-        { dx: 0, dy: 1 }, // South
-        { dx: -1, dy: 1 }, // South-West
-        { dx: -1, dy: 0 }, // West
-        { dx: -1, dy: -1 }, // North-West
-    ]
-
-    // Shuffle directions (but keep center first)
-    const centerDir = directions[0]
-    const otherDirs = directions.slice(1)
-    for (let i = otherDirs.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1))
-        ;[otherDirs[i], otherDirs[j]] = [otherDirs[j], otherDirs[i]]
-    }
-    const shuffledDirections = [centerDir, ...otherDirs]
+    const numRectangles = randomInt(1, MAX_NEW_RECTS)
+    const shuffledDirections = [DIRECTIONS[0], ...shuffle(DIRECTIONS.slice(1))]
 
     // Try to place rectangles in different directions
     for (let i = 0; i < numRectangles; i++) {
         if (i >= shuffledDirections.length) break
 
         const dir = shuffledDirections[i]
-
-        // Select a random aspect ratio
-        const [heightRatio, widthRatio] =
-            aspectRatios[Math.floor(Math.random() * aspectRatios.length)]
-
-        // Calculate grid dimensions
+        const [heightRatio, widthRatio] = choice(aspectRatios)
         const gridWidth = widthRatio
         const gridHeight = heightRatio
 
-        // Calculate grid position based on direction
         let gridX, gridY
 
         if (dir.dx === 0 && dir.dy === 0) {
@@ -313,45 +272,28 @@ function createRectanglesAroundCenter() {
                     : gridCenter.gridY - gridHeight
         }
 
-        // Check if area is available
         if (!isAreaOccupied(gridX, gridY, gridWidth, gridHeight)) {
-            // Convert grid position to world coordinates
             const worldPos = gridToWorld(gridX, gridY)
-
-            // Create rectangle element
             const rectElement = document.createElement("div")
-            rectElement.className = "grid-cell"
-            rectElement.style.left = `${worldPos.x - viewX}px`
-            rectElement.style.top = `${worldPos.y - viewY}px`
-            rectElement.style.width = `${gridWidth * CELL_SIZE}px`
-            rectElement.style.height = `${gridHeight * CELL_SIZE}px`
-            rectElement.style.backgroundColor =
-                colors[Math.floor(Math.random() * colors.length)]
 
-            // Create content (either text or image)
+            rectElement.className = "grid-cell"
+            applyStyles(rectElement, {
+                left: `${worldPos.x - viewX}px`,
+                top: `${worldPos.y - viewY}px`,
+                width: `${gridWidth * CELL_SIZE}px`,
+                height: `${gridHeight * CELL_SIZE}px`,
+                backgroundColor: choice(colors),
+            })
             const contentElement = document.createElement("div")
             contentElement.className = "rectangle-content"
 
-            // Randomly choose between text and image (70% text, 30% image)
-            if (Math.random() < 0.7) {
-                // Text content
-                const p = document.createElement("p")
-                p.textContent =
-                    textContent[Math.floor(Math.random() * textContent.length)]
-                contentElement.appendChild(p)
-            } else {
-                // Image content
-                const img = document.createElement("img")
-                img.src =
-                    imageUrls[Math.floor(Math.random() * imageUrls.length)]
-                img.alt = "Grid item"
-                contentElement.appendChild(img)
-            }
+            const p = document.createElement("p")
+            p.textContent = choice(textContent)
+            contentElement.appendChild(p)
 
             rectElement.appendChild(contentElement)
             gridContainer.appendChild(rectElement)
 
-            // Add click event to show popup
             rectElement.addEventListener("click", (e) => {
                 // Prevent click during panning
                 if (totalMoveX + totalMoveY > 20) return
@@ -369,7 +311,6 @@ function createRectanglesAroundCenter() {
                 rectElement.classList.add("visible")
             }, 10)
 
-            // Create rectangle object
             const newRectangle = {
                 x: worldPos.x,
                 y: worldPos.y,
@@ -398,10 +339,8 @@ function createRectanglesAroundCenter() {
                 // Trigger fade-out animation before removing
                 oldRect.element.classList.remove("visible")
                 setTimeout(() => {
-                    if (oldRect.element?.parentNode) {
-                        oldRect.element.parentNode.removeChild(oldRect.element)
-                    }
-                }, 300) // Match CSS transition duration
+                    oldRect.element.parentNode?.removeChild(oldRect.element)
+                }, 300)
             }
 
             countElement.textContent = rectangles.length
@@ -409,6 +348,24 @@ function createRectanglesAroundCenter() {
     }
 }
 
-// Initial setup
-lastRectangleTime = Date.now() // Initialize last rectangle time
-updateCenterIndicator()
+window.addEventListener("DOMContentLoaded", () => {
+    gridContainer.addEventListener("mousedown", startPan)
+    gridContainer.addEventListener("mousemove", pan)
+    gridContainer.addEventListener("mouseup", endPan)
+    gridContainer.addEventListener("mouseleave", endPan)
+
+    popupClose.addEventListener("click", closePopup)
+    overlay.addEventListener("click", closePopup)
+
+    delaySlider.addEventListener("input", function () {
+        squareInterval = parseInt(this.value)
+        delayValue.textContent = squareInterval
+    })
+
+    window.addEventListener("resize", updateCenterIndicator)
+
+    // ------------------------------------------------------------------
+
+    lastRectangleTime = Date.now() // Initialize last rectangle time
+    updateCenterIndicator()
+})
