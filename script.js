@@ -20,6 +20,14 @@ function shuffle(array) {
     return array
 }
 
+function q(sel, parent = document) {
+    return parent.querySelector(sel)
+}
+
+function qa(sel, parent = document) {
+    return parent.querySelectorAll(sel)
+}
+
 function applyStyles(el, styles) {
     for (let prop in styles) {
         el.style[prop] = styles[prop]
@@ -90,29 +98,28 @@ const imageUrls = []
 // -----------------------------------------------------
 
 // Grid container setup
-const gridContainer = document.getElementById("grid-container")
-const countElement = document.getElementById("count")
-const centerIndicator = document.getElementById("center-indicator")
+const gridContainer = q("#grid-container")
+const countElement = q("#count")
+const centerIndicator = q("#center-indicator")
 
 // Controls
-const delaySlider = document.getElementById("delay-slider")
-const delayValue = document.getElementById("delay-value")
+const delaySlider = q("#delay-slider")
+const delayValue = q("#delay-value")
 
 // Popup elements
-const popup = document.getElementById("popup")
-const overlay = document.getElementById("overlay")
-const popupClose = document.getElementById("popup-close")
-const popupText = document.getElementById("popup-text")
-const popupDimensions = document.getElementById("popup-dimensions")
+const popup = q("#popup")
+const overlay = q("#overlay")
+const popupClose = q("#popup-close")
+const popupText = q("#popup-text")
+const popupDimensions = q("#popup-dimensions")
 
 // -----------------------------------------------------
 
 function showPopup(rectangle) {
-    const isText = rectangle.element.querySelector("p")
-    popupText.textContent = isText
-        ? `Text Content: ${isText.textContent}`
-        : "Image Content"
+    const isText = q(rectangle.element, "p")
+    popupText.textContent = isText?.textContent
     popupDimensions.textContent = `Size: ${rectangle.gridWidth}x${rectangle.gridHeight}`
+
     popup.classList.add("visible")
     overlay.classList.add("visible")
 }
@@ -125,6 +132,7 @@ function closePopup() {
 function updateCenterIndicator() {
     const centerX = window.innerWidth / 2
     const centerY = window.innerHeight / 2
+
     applyStyles(centerIndicator, {
         left: `${centerX}px`,
         top: `${centerY}px`,
@@ -275,7 +283,6 @@ function createRectanglesAroundCenter() {
         if (!isAreaOccupied(gridX, gridY, gridWidth, gridHeight)) {
             const worldPos = gridToWorld(gridX, gridY)
             const rectElement = document.createElement("div")
-
             rectElement.className = "grid-cell"
             applyStyles(rectElement, {
                 left: `${worldPos.x - viewX}px`,
@@ -348,7 +355,14 @@ function createRectanglesAroundCenter() {
     }
 }
 
-window.addEventListener("DOMContentLoaded", () => {
+// -------------------------------------------------------------------
+
+function prepare() {
+    // --- Init States
+    lastRectangleTime = Date.now() // Initialize last rectangle time
+    updateCenterIndicator()
+
+    // --- Register Events
     gridContainer.addEventListener("mousedown", startPan)
     gridContainer.addEventListener("mousemove", pan)
     gridContainer.addEventListener("mouseup", endPan)
@@ -363,9 +377,6 @@ window.addEventListener("DOMContentLoaded", () => {
     })
 
     window.addEventListener("resize", updateCenterIndicator)
+}
 
-    // ------------------------------------------------------------------
-
-    lastRectangleTime = Date.now() // Initialize last rectangle time
-    updateCenterIndicator()
-})
+window.addEventListener("DOMContentLoaded", prepare)
