@@ -5,7 +5,8 @@ function randomInt(min, max) {
 }
 
 function choice(arr) {
-    return arr[randomInt(0, arr.length - 1)]
+    let i = randomInt(0, arr.length - 1)
+    return arr[i]
 }
 
 function swapIndexes(array, i, j) {
@@ -51,15 +52,15 @@ class SparseGrid {
 
     worldToGrid(x, y) {
         return {
-            gridX: Math.floor(x / EFFECTIVE_CELL_SIZE),
-            gridY: Math.floor(y / EFFECTIVE_CELL_SIZE),
+            gridX: Math.floor(x / CELL_SIZE),
+            gridY: Math.floor(y / CELL_SIZE),
         }
     }
 
     gridToWorld(gridX, gridY) {
         return {
-            x: gridX * EFFECTIVE_CELL_SIZE + CELL_MARGIN,
-            y: gridY * EFFECTIVE_CELL_SIZE + CELL_MARGIN,
+            x: gridX * CELL_SIZE,
+            y: gridY * CELL_SIZE,
         }
     }
 
@@ -100,7 +101,6 @@ class SparseGrid {
 
 const CELL_SIZE = 80
 const CELL_MARGIN = 4
-const EFFECTIVE_CELL_SIZE = CELL_SIZE
 const MAX_NEW_RECTS = 3
 
 const DIRECTIONS = [
@@ -144,13 +144,14 @@ const textContent = ["Grid", "Tile", "Box", "Cell"]
 // View state
 let viewX = 0
 let viewY = 0
-let isDragging = false
 let lastX = 0
 let lastY = 0
 let totalMoveX = 0
 let totalMoveY = 0
+
 let lastRectangleTime = 0 // Time of last rectangle placement
 let squareInterval = 250 // Configurable delay between rectangle batches (default 250ms)
+let isDragging = false
 
 // Occupied grid cells tracking
 const imageUrls = []
@@ -190,6 +191,8 @@ function closePopup() {
     popup.classList.remove("visible")
     overlay.classList.remove("visible")
 }
+
+// -----------------------------------------------------
 
 function updateCenterIndicator() {
     const centerX = window.innerWidth / 2
@@ -376,6 +379,7 @@ function createRectanglesAroundCenter() {
 // -------------------------------------------------------------------
 
 function prepare() {
+
     // --- Init States
     lastRectangleTime = Date.now() // Initialize last rectangle time
     updateCenterIndicator()
