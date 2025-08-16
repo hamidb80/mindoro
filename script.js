@@ -100,7 +100,7 @@ class SparseGrid {
 
 const CELL_SIZE = 80
 const CELL_MARGIN = 4
-const EFFECTIVE_CELL_SIZE = CELL_SIZE + CELL_MARGIN * 2 // Total space per cell
+const EFFECTIVE_CELL_SIZE = CELL_SIZE
 const MAX_NEW_RECTS = 3
 
 const DIRECTIONS = [
@@ -307,10 +307,10 @@ function createRectanglesAroundCenter() {
             const p = createElement("p")
 
             applyStyles(rectElement, {
-                left: `${worldPos.x - viewX}px`,
-                top: `${worldPos.y - viewY}px`,
-                width: `${gridWidth * CELL_SIZE}px`,
-                height: `${gridHeight * CELL_SIZE}px`,
+                left: `${worldPos.x - viewX + CELL_MARGIN}px`,
+                top: `${worldPos.y - viewY + CELL_MARGIN}px`,
+                width: `${gridWidth * CELL_SIZE - 2 * CELL_MARGIN}px`,
+                height: `${gridHeight * CELL_SIZE - 2 * CELL_MARGIN}px`,
                 backgroundColor: choice(colors),
             })
 
