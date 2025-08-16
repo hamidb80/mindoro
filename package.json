@@ -1,0 +1,19 @@
+{
+  "name": "mindoro",
+  "version": "1.0.0",
+  "description": "I'm tired of mind maps",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hamidb80/mindoro.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/hamidb80/mindoro/issues"
+  },
+  "homepage": "https://github.com/hamidb80/mindoro#readme"
+}

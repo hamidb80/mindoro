@@ -34,6 +34,68 @@ function applyStyles(el, styles) {
     }
 }
 
+function addEv(el, evt, fn) {
+    return el.addEventListener(evt, fn)
+}
+
+function createElement(tag, cls) {
+    let el = document.createElement(tag)
+    el.className = cls
+    return el
+}
+
+class SparseGrid {
+    constructor() {
+        this.occupiedCells = new Set()
+    }
+
+    worldToGrid(x, y) {
+        return {
+            gridX: Math.floor(x / EFFECTIVE_CELL_SIZE),
+            gridY: Math.floor(y / EFFECTIVE_CELL_SIZE),
+        }
+    }
+
+    gridToWorld(gridX, gridY) {
+        return {
+            x: gridX * EFFECTIVE_CELL_SIZE + CELL_MARGIN,
+            y: gridY * EFFECTIVE_CELL_SIZE + CELL_MARGIN,
+        }
+    }
+
+    // --------------------------------------------------
+
+    getCellKey(gridX, gridY) {
+        return `${gridX},${gridY}`
+    }
+
+    isAreaOccupied(gridX, gridY, widthCells, heightCells) {
+        for (let y = gridY; y < gridY + heightCells; y++) {
+            for (let x = gridX; x < gridX + widthCells; x++) {
+                if (this.occupiedCells.has(this.getCellKey(x, y))) {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
+    markAreaOccupied(gridX, gridY, widthCells, heightCells) {
+        for (let y = gridY; y < gridY + heightCells; y++) {
+            for (let x = gridX; x < gridX + widthCells; x++) {
+                this.occupiedCells.add(this.getCellKey(x, y))
+            }
+        }
+    }
+    markAreaFree(gridX, gridY, widthCells, heightCells) {
+        for (let y = gridY; y < gridY + heightCells; y++) {
+            for (let x = gridX; x < gridX + widthCells; x++) {
+                this.occupiedCells.delete(this.getCellKey(x, y))
+            }
+        }
+    }
+}
+
 // Cosntants ------------------------------------
 
 const CELL_SIZE = 80
@@ -91,9 +153,9 @@ let lastRectangleTime = 0 // Time of last rectangle placement
 let squareInterval = 250 // Configurable delay between rectangle batches (default 250ms)
 
 // Occupied grid cells tracking
-const occupiedCells = new Set()
-const rectangles = []
 const imageUrls = []
+const rectangles = []
+const grid = new SparseGrid()
 
 // -----------------------------------------------------
 
@@ -151,7 +213,7 @@ function startPan(e) {
     gridContainer.style.cursor = "grabbing"
 }
 
-function pan(e) {
+function movePan(e) {
     if (!isDragging) return
 
     const dx = e.clientX - lastX
@@ -180,49 +242,6 @@ function endPan() {
     gridContainer.style.cursor = "grab"
 }
 
-function worldToGrid(x, y) {
-    return {
-        gridX: Math.floor(x / EFFECTIVE_CELL_SIZE),
-        gridY: Math.floor(y / EFFECTIVE_CELL_SIZE),
-    }
-}
-
-// Convert grid coordinates to world coordinates (with margin)
-function gridToWorld(gridX, gridY) {
-    return {
-        x: gridX * EFFECTIVE_CELL_SIZE + CELL_MARGIN,
-        y: gridY * EFFECTIVE_CELL_SIZE + CELL_MARGIN,
-    }
-}
-
-function getCellKey(gridX, gridY) {
-    return `${gridX},${gridY}`
-}
-function isAreaOccupied(gridX, gridY, widthCells, heightCells) {
-    for (let y = gridY; y < gridY + heightCells; y++) {
-        for (let x = gridX; x < gridX + widthCells; x++) {
-            if (occupiedCells.has(getCellKey(x, y))) {
-                return true
-            }
-        }
-    }
-    return false
-}
-
-function markAreaOccupied(gridX, gridY, widthCells, heightCells) {
-    for (let y = gridY; y < gridY + heightCells; y++) {
-        for (let x = gridX; x < gridX + widthCells; x++) {
-            occupiedCells.add(getCellKey(x, y))
-        }
-    }
-}
-function markAreaFree(gridX, gridY, widthCells, heightCells) {
-    for (let y = gridY; y < gridY + heightCells; y++) {
-        for (let x = gridX; x < gridX + widthCells; x++) {
-            occupiedCells.delete(getCellKey(x, y))
-        }
-    }
-}
 function updateRectanglePositions() {
     for (const rect of rectangles) {
         applyStyles(rect.element, {
@@ -235,7 +254,7 @@ function updateRectanglePositions() {
 function createRectanglesAroundCenter() {
     const centerX = viewX + window.innerWidth / 2
     const centerY = viewY + window.innerHeight / 2
-    const gridCenter = worldToGrid(centerX, centerY)
+    const gridCenter = grid.worldToGrid(centerX, centerY)
     const numRectangles = randomInt(1, MAX_NEW_RECTS)
     const shuffledDirections = [DIRECTIONS[0], ...shuffle(DIRECTIONS.slice(1))]
 
@@ -280,10 +299,13 @@ function createRectanglesAroundCenter() {
                     : gridCenter.gridY - gridHeight
         }
 
-        if (!isAreaOccupied(gridX, gridY, gridWidth, gridHeight)) {
-            const worldPos = gridToWorld(gridX, gridY)
-            const rectElement = document.createElement("div")
-            rectElement.className = "grid-cell"
+        if (!grid.isAreaOccupied(gridX, gridY, gridWidth, gridHeight)) {
+            const worldPos = grid.gridToWorld(gridX, gridY)
+
+            const rectElement = createElement("div", "grid-cell")
+            const contentElement = createElement("div", "rectangle-content")
+            const p = createElement("p")
+
             applyStyles(rectElement, {
                 left: `${worldPos.x - viewX}px`,
                 top: `${worldPos.y - viewY}px`,
@@ -291,13 +313,9 @@ function createRectanglesAroundCenter() {
                 height: `${gridHeight * CELL_SIZE}px`,
                 backgroundColor: choice(colors),
             })
-            const contentElement = document.createElement("div")
-            contentElement.className = "rectangle-content"
 
-            const p = document.createElement("p")
             p.textContent = choice(textContent)
             contentElement.appendChild(p)
-
             rectElement.appendChild(contentElement)
             gridContainer.appendChild(rectElement)
 
@@ -331,12 +349,12 @@ function createRectanglesAroundCenter() {
             }
 
             rectangles.push(newRectangle)
-            markAreaOccupied(gridX, gridY, gridWidth, gridHeight)
+            grid.markAreaOccupied(gridX, gridY, gridWidth, gridHeight)
 
             // Remove oldest rectangle if we exceed the limit
             if (rectangles.length > MAX_RECTANGLES) {
                 const oldRect = rectangles.shift()
-                markAreaFree(
+                grid.markAreaFree(
                     oldRect.gridX,
                     oldRect.gridY,
                     oldRect.gridWidth,
@@ -363,20 +381,20 @@ function prepare() {
     updateCenterIndicator()
 
     // --- Register Events
-    gridContainer.addEventListener("mousedown", startPan)
-    gridContainer.addEventListener("mousemove", pan)
-    gridContainer.addEventListener("mouseup", endPan)
-    gridContainer.addEventListener("mouseleave", endPan)
+    addEv(gridContainer, "mousedown", startPan)
+    addEv(gridContainer, "mousemove", movePan)
+    addEv(gridContainer, "mouseup", endPan)
+    addEv(gridContainer, "mouseleave", endPan)
 
-    popupClose.addEventListener("click", closePopup)
-    overlay.addEventListener("click", closePopup)
+    addEv(popupClose, "click", closePopup)
+    addEv(overlay, "click", closePopup)
 
-    delaySlider.addEventListener("input", function () {
+    addEv(delaySlider, "input", function () {
         squareInterval = parseInt(this.value)
         delayValue.textContent = squareInterval
     })
 
-    window.addEventListener("resize", updateCenterIndicator)
+    addEv(window, "resize", updateCenterIndicator)
 }
 
-window.addEventListener("DOMContentLoaded", prepare)
+addEv(window, "DOMContentLoaded", prepare)
